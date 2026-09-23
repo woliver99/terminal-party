@@ -20,13 +20,13 @@ pub fn render(f: &mut Frame, app: &App) {
     let invite_cmd = format!("{}/party.sh", app.party_dir.display());
     let header_lines = vec![
         Line::from(vec![
-            Span::styled("TERMINAL PARTY", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled("Terminal Party", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
             Span::styled("Created by: ", Style::default().fg(Color::DarkGray)),
             Span::styled("Oliver (woliver99)", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-            Span::styled(" | Terminal Minecraft: ", Style::default().fg(Color::DarkGray)),
-            Span::styled("TermCraft (vikvang/termcraft)", Style::default().fg(Color::Magenta)),
+            Span::styled(" | Credits: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("Minecraft (vikvang/termcraft)", Style::default().fg(Color::Magenta)),
         ]),
         Line::from(vec![
             Span::styled("Invite others on this server: ", Style::default().fg(Color::DarkGray)),
@@ -50,8 +50,8 @@ pub fn render(f: &mut Frame, app: &App) {
     let header_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::DarkGray))
-        .title("Info")
-        .title_alignment(Alignment::Left);
+        .title(" Info ")
+        .title_alignment(Alignment::Center);
 
     let header = Paragraph::new(header_lines)
         .block(header_block)

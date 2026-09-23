@@ -73,6 +73,22 @@ Shared university servers have many concurrent users. Terminal Party is architec
 
 ---
 
+## 🧪 Testing Before Release
+
+You can test compilation, static linking, player persistence, and sandbox permissions locally at any time:
+
+```bash
+./test.sh
+```
+
+This runs:
+- All unit tests (including player persistence save/load tests).
+- Containerized static compilation for `x86_64`.
+- Automated permission tests in a mock sandbox directory.
+- Optional interactive session in `/tmp/test-terminal-party` to test chat and TermCraft before releasing.
+
+---
+
 ## 📦 How to Create Releases
 
 Releases can be built and uploaded whenever you want using the local release script:
