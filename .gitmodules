@@ -1,0 +1,3 @@
+[submodule "termcraft"]
+	path = termcraft
+	url = https://github.com/woliver99/termcraft.git
