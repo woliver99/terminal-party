@@ -1,0 +1,14 @@
+[package]
+name = "party-chat"
+version = "1.0.0"
+edition = "2021"
+description = "Tamper-proof terminal chat client with Minecraft integration for terminal-party"
+
+[[bin]]
+name = "party-chat"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+chrono = "0.4"
