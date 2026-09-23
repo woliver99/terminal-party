@@ -59,28 +59,82 @@ chmod 755 "$TEST_SANDBOX"
 SANDBOX_PERMS=$(stat -c "%a" "$TEST_SANDBOX" 2>/dev/null || stat -f "%Op" "$TEST_SANDBOX" | tail -c 4)
 echo "  • Sandbox root mode: $SANDBOX_PERMS (expected: 755)"
 
-# Verify sticky-bit messages directory (1777)
-mkdir -p "$TEST_SANDBOX/messages"
-chmod 1777 "$TEST_SANDBOX/messages"
-MESSAGES_PERMS=$(stat -c "%a" "$TEST_SANDBOX/messages" 2>/dev/null || stat -f "%Op" "$TEST_SANDBOX/messages" | tail -c 5)
-echo "  • Messages dir mode: $MESSAGES_PERMS (expected: 1777)"
+# Verify sticky-bit data & messages directory (1777)
+mkdir -p "$TEST_SANDBOX/data/messages"
+chmod 1777 "$TEST_SANDBOX/data" "$TEST_SANDBOX/data/messages"
+DATA_PERMS=$(stat -c "%a" "$TEST_SANDBOX/data" 2>/dev/null || stat -f "%Op" "$TEST_SANDBOX/data" | tail -c 5)
+echo "  • Data dir mode: $DATA_PERMS (expected: 1777)"
 
 # Test log file creation (0644)
-touch "$TEST_SANDBOX/messages/test_user.log"
-chmod 644 "$TEST_SANDBOX/messages/test_user.log"
-echo "[12:00:00] Hello test" >> "$TEST_SANDBOX/messages/test_user.log"
+touch "$TEST_SANDBOX/data/messages/test_user.log"
+chmod 644 "$TEST_SANDBOX/data/messages/test_user.log"
+echo "[12:00:00] Hello test" >> "$TEST_SANDBOX/data/messages/test_user.log"
 
 rm -rf "$TEST_SANDBOX"
 echo "  ✅ Permission sandbox passed."
 
-# 6. Check shell scripts syntax
+# 6. Test party.sh CLI arguments & update functionality
+echo "⚙️  Testing party.sh CLI arguments..."
+
+# Test --help
+HELP_OUT=$(./party.sh --help)
+if echo "$HELP_OUT" | grep -q -- "--update"; then
+    echo "  • party.sh --help lists --update option: ✅"
+else
+    echo "  ❌ Error: party.sh --help missing --update option"
+    exit 1
+fi
+
+# Test --version on test sandbox
+TEST_UPDATE_DIR="/tmp/test-party-update-$$"
+mkdir -p "$TEST_UPDATE_DIR"
+echo "v1.2.3-test" > "$TEST_UPDATE_DIR/version.txt"
+VER_OUT=$(PARTY_DIR="$TEST_UPDATE_DIR" ./party.sh --version)
+if echo "$VER_OUT" | grep -q "v1.2.3-test"; then
+    echo "  • party.sh --version returns correct version: ✅"
+else
+    echo "  ❌ Error: party.sh --version failed"
+    exit 1
+fi
+
+# Test --update as owner
+UPDATE_OUT=$(PARTY_DIR="$TEST_UPDATE_DIR" ./party.sh --update)
+if echo "$UPDATE_OUT" | grep -q "successfully updated"; then
+    echo "  • party.sh --update as owner succeeds: ✅"
+else
+    echo "  ❌ Error: party.sh --update failed: $UPDATE_OUT"
+    exit 1
+fi
+
+# Verify binaries and version were updated
+if [ -f "$TEST_UPDATE_DIR/version.txt" ] && [ -x "$TEST_UPDATE_DIR/party-chat" ]; then
+    echo "  • Updated binaries and version.txt verified: ✅"
+else
+    echo "  ❌ Error: party.sh --update did not install expected files"
+    exit 1
+fi
+
+# Test non-owner rejection
+if [ "$(id -u)" -ne 0 ]; then
+    NON_OWNER_ERR=$(PARTY_DIR="/proc" ./party.sh --update 2>&1 || true)
+    if echo "$NON_OWNER_ERR" | grep -q "Permission denied: You do not own"; then
+        echo "  • party.sh --update blocks non-owner with friendly error: ✅"
+    else
+        echo "  ❌ Error: party.sh --update should have blocked non-owner on /proc: $NON_OWNER_ERR"
+        exit 1
+    fi
+fi
+
+rm -rf "$TEST_UPDATE_DIR"
+
+# 7. Check shell scripts syntax
 echo "📜 Checking script syntax..."
 bash -n party.sh
 bash -n release.sh
 echo "  ✅ Shell scripts passed syntax validation."
 
 echo ""
-# 7. Deploy local test environment to /tmp/test-terminal-party
+# 8. Deploy local test environment to /tmp/test-terminal-party
 INTERACTIVE_DIR="/tmp/test-terminal-party"
 echo "📦 Deploying local build to $INTERACTIVE_DIR for testing..."
 rm -rf "$INTERACTIVE_DIR"
@@ -89,8 +143,8 @@ chmod 755 "$INTERACTIVE_DIR"
 cp target/release/party-chat target/release/termcraft party.sh "$INTERACTIVE_DIR/"
 echo "local-test" > "$INTERACTIVE_DIR/version.txt"
 chmod 755 "$INTERACTIVE_DIR/party-chat" "$INTERACTIVE_DIR/termcraft" "$INTERACTIVE_DIR/party.sh"
-mkdir -p "$INTERACTIVE_DIR/messages"
-chmod 1777 "$INTERACTIVE_DIR/messages"
+mkdir -p "$INTERACTIVE_DIR/data" "$INTERACTIVE_DIR/data/messages"
+chmod 1777 "$INTERACTIVE_DIR/data" "$INTERACTIVE_DIR/data/messages"
 
 echo "  ✅ Installed test build to $INTERACTIVE_DIR"
 echo ""

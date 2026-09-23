@@ -35,12 +35,26 @@ impl App {
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("/tmp/terminal-party"));
 
-        let messages_dir = party_dir.join("messages");
+        let messages_dir = if party_dir.join("data").join("messages").exists()
+            || party_dir.join("data").exists() {
+            party_dir.join("data").join("messages")
+        } else if party_dir.join("messages").exists() {
+            party_dir.join("messages")
+        } else {
+            party_dir.join("data").join("messages")
+        };
         fs::create_dir_all(&messages_dir).ok();
 
         #[cfg(unix)]
         {
-            // Ensure sticky bit (1777) so anyone can create their log, but only they can modify/delete it
+            // Ensure data directory and messages directory have sticky bit (1777)
+            if let Some(parent) = messages_dir.parent() {
+                if let Ok(meta) = fs::metadata(parent) {
+                    let mut perms = meta.permissions();
+                    perms.set_mode(0o1777);
+                    let _ = fs::set_permissions(parent, perms);
+                }
+            }
             if let Ok(meta) = fs::metadata(&messages_dir) {
                 let mut perms = meta.permissions();
                 perms.set_mode(0o1777);
@@ -108,13 +122,26 @@ impl App {
 
             match cmd.as_str() {
                 "/minecraft" | "/mc" => {
-                    self.launch_minecraft(terminal)?;
+                    let creative = parts.get(1).map(|s| s.eq_ignore_ascii_case("creative") || *s == "-c").unwrap_or(false);
+                    self.launch_minecraft(terminal, creative)?;
+                }
+                "/creative" => {
+                    self.launch_minecraft(terminal, true)?;
+                }
+                "/update" => {
+                    let local_cmd = format!("{}/party.sh --update", self.party_dir.display());
+                    self.messages.push(ChatMessage {
+                        timestamp: Local::now().format("%H:%M:%S").to_string(),
+                        author: "SYSTEM".to_string(),
+                        content: format!("To update Terminal Party to the latest release, exit the party (/quit) and run: {}", local_cmd),
+                        is_event: true,
+                    });
                 }
                 "/help" => {
                     self.messages.push(ChatMessage {
                         timestamp: Local::now().format("%H:%M:%S").to_string(),
                         author: "SYSTEM".to_string(),
-                        content: "Available commands: /minecraft (or /mc) - Play 3D Minecraft | /invite - Show invite command | /credits - View credits | /clear - Clear feed | /quit - Exit".to_string(),
+                        content: "Available commands: /minecraft (or /mc) [creative] - Play 3D Minecraft | /creative - Play in creative mode | /update - Update instructions | /invite - Show invite command | /credits - View credits | /clear - Clear feed | /quit - Exit".to_string(),
                         is_event: true,
                     });
                 }
@@ -164,8 +191,12 @@ impl App {
         Ok(())
     }
 
-    pub fn launch_minecraft(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
-        self.log_event("entered Minecraft");
+    pub fn launch_minecraft(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, creative: bool) -> io::Result<()> {
+        if creative {
+            self.log_event("entered Minecraft (Creative)");
+        } else {
+            self.log_event("entered Minecraft");
+        }
 
         // Leave alternate screen & raw mode so TermCraft has full terminal access
         disable_raw_mode()?;
@@ -180,11 +211,14 @@ impl App {
             PathBuf::from("termcraft")
         };
 
-        // Run TermCraft with seed 7 and player name
-        let _ = Command::new(&bin_path)
-            .args(["--seed", "7", "--name", &self.username])
-            .env("PARTY_DIR", &self.party_dir)
-            .status();
+        // Run TermCraft with seed 7, player name, and optional creative mode
+        let mut cmd = Command::new(&bin_path);
+        cmd.args(["--seed", "7", "--name", &self.username]);
+        if creative {
+            cmd.arg("--creative");
+        }
+        cmd.env("PARTY_DIR", &self.party_dir);
+        let _ = cmd.status();
 
         // Restore terminal state
         let _ = Command::new("stty").arg("sane").status();

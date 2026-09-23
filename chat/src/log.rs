@@ -121,3 +121,46 @@ pub fn poll_new_messages(
     new_entries.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     new_entries
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_log_line() {
+        let msg = parse_log_line("[12:34:56] Hello world!", "alice").expect("valid line");
+        assert_eq!(msg.timestamp, "12:34:56");
+        assert_eq!(msg.author, "alice");
+        assert_eq!(msg.content, "Hello world!");
+        assert!(!msg.is_event);
+
+        let event = parse_log_line("[12:35:00] *** joined the party ***", "bob").expect("valid line");
+        assert_eq!(event.content, "*** joined the party ***");
+        assert!(event.is_event);
+
+        assert!(parse_log_line("invalid line", "charlie").is_none());
+    }
+
+    #[test]
+    fn test_append_and_poll_messages() {
+        let temp_dir = std::env::temp_dir().join(format!("chat-test-{}", std::process::id()));
+        let _ = fs::create_dir_all(&temp_dir);
+
+        let user_log = temp_dir.join("alice.log");
+        append_user_log(&user_log, "first message");
+        append_user_log(&user_log, "*** joined the party ***");
+
+        let mut offsets = HashMap::new();
+        let msgs = poll_new_messages(&temp_dir, &mut offsets);
+        assert_eq!(msgs.len(), 2);
+        assert_eq!(msgs[0].author, "alice");
+        assert_eq!(msgs[0].content, "first message");
+        assert!(msgs[1].is_event);
+
+        // Polling again without new writes yields nothing
+        let msgs2 = poll_new_messages(&temp_dir, &mut offsets);
+        assert!(msgs2.is_empty());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+}
