@@ -183,6 +183,7 @@ impl App {
         // Run TermCraft with seed 7 and player name
         let _ = Command::new(&bin_path)
             .args(["--seed", "7", "--name", &self.username])
+            .env("PARTY_DIR", &self.party_dir)
             .status();
 
         // Restore terminal state
