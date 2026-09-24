@@ -70,6 +70,7 @@ show_version() {
 
 # Handle CLI options
 DO_DIAG=0
+DO_UPDATE=0
 case "${1:-}" in
     --help|-h)
         show_help
@@ -89,7 +90,7 @@ case "${1:-}" in
 esac
 
 # Check ownership if updating an existing directory
-if [ "$DO_UPDATE" -eq 1 ]; then
+if [ "${DO_UPDATE:-0}" -eq 1 ]; then
     if [ -d "$PARTY_DIR" ] && ! is_dir_owner "$PARTY_DIR"; then
         DIR_OWNER=$(stat -c '%U' "$PARTY_DIR" 2>/dev/null || stat -f '%Su' "$PARTY_DIR" 2>/dev/null || echo "another user")
         echo "❌ Permission denied: You do not own $PARTY_DIR."
@@ -98,8 +99,8 @@ if [ "$DO_UPDATE" -eq 1 ]; then
     fi
 fi
 
-if [ "$DO_UPDATE" -eq 1 ] || [ ! -d "$PARTY_DIR" ] || [ ! -x "$PARTY_DIR/party-chat" ]; then
-    if [ "$DO_UPDATE" -eq 1 ]; then
+if [ "${DO_UPDATE:-0}" -eq 1 ] || [ ! -d "$PARTY_DIR" ] || [ ! -x "$PARTY_DIR/party-chat" ]; then
+    if [ "${DO_UPDATE:-0}" -eq 1 ]; then
         CURRENT_VER="unknown"
         [ -f "$PARTY_DIR/version.txt" ] && CURRENT_VER="$(cat "$PARTY_DIR/version.txt" 2>/dev/null)"
         echo "🔄 Updating Terminal Party in $PARTY_DIR (current version: $CURRENT_VER)..."
