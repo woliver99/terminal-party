@@ -44,12 +44,14 @@ Usage:
 
 Options:
   --update, -u    Update Terminal Party binaries in $PARTY_DIR (owner only)
+  --diag, -d      Run keyboard & input diagnostics (troubleshoot Hold Mode)
   --version, -v   Show installed version
   --help, -h      Show this help message
 
 In-Party Commands:
   /minecraft, /mc [creative]  Launch 3D Minecraft (Survival or Creative)
   /creative                   Launch directly into Creative Mode
+  /diag                       Run keyboard diagnostics
   /update                     Show instructions to update
   /invite                     Show server invite command
   /quit                       Exit party
@@ -67,12 +69,16 @@ show_version() {
 }
 
 # Handle CLI options
+DO_DIAG=0
 case "${1:-}" in
     --help|-h)
         show_help
         ;;
     --version|-v)
         show_version
+        ;;
+    --diag|-d)
+        DO_DIAG=1
         ;;
     --update|-u)
         DO_UPDATE=1
@@ -158,6 +164,18 @@ fi
 # Ensure shared data directory and messages directory exist with sticky-bit permissions (1777)
 mkdir -p "$DATA_DIR" "$MESSAGES_DIR" 2>/dev/null || true
 chmod 1777 "$DATA_DIR" "$MESSAGES_DIR" 2>/dev/null || true
+
+# Handle diagnostics mode
+if [ "$DO_DIAG" -eq 1 ]; then
+    if [ -x "$PARTY_DIR/termcraft" ]; then
+        exec "$PARTY_DIR/termcraft" --diag
+    elif [ -x "$SCRIPT_DIR/target/release/termcraft" ]; then
+        exec "$SCRIPT_DIR/target/release/termcraft" --diag
+    else
+        echo "❌ Error: termcraft not found. Run party.sh first to install."
+        exit 1
+    fi
+fi
 
 # Launch the chat app
 if [ -x "$PARTY_DIR/party-chat" ]; then

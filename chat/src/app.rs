@@ -128,6 +128,9 @@ impl App {
                 "/creative" => {
                     self.launch_minecraft(terminal, true)?;
                 }
+                "/diag" | "/diagnostics" => {
+                    self.launch_diagnostics(terminal)?;
+                }
                 "/update" => {
                     let local_cmd = format!("{}/party.sh --update", self.party_dir.display());
                     self.messages.push(ChatMessage {
@@ -141,7 +144,7 @@ impl App {
                     self.messages.push(ChatMessage {
                         timestamp: Local::now().format("%H:%M:%S").to_string(),
                         author: "SYSTEM".to_string(),
-                        content: "Available commands: /minecraft (or /mc) [creative] - Play 3D Minecraft | /creative - Play in creative mode | /update - Update instructions | /invite - Show invite command | /credits - View credits | /clear - Clear feed | /quit - Exit".to_string(),
+                        content: "Available commands: /minecraft (or /mc) [creative] - Play 3D Minecraft | /creative - Play in creative mode | /diag - Keyboard diagnostics | /update - Update instructions | /invite - Show invite command | /credits - View credits | /clear - Clear feed | /quit - Exit".to_string(),
                         is_event: true,
                     });
                 }
@@ -230,6 +233,35 @@ impl App {
 
         self.log_event("returned from Minecraft");
 
+        Ok(())
+    }
+
+    pub fn launch_diagnostics(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
+        disable_raw_mode()?;
+        execute!(terminal.backend_mut(), LeaveAlternateScreen, crossterm::cursor::Show)?;
+
+        let termcraft_bin = self.party_dir.join("termcraft");
+        let bin_path = if termcraft_bin.exists() {
+            termcraft_bin
+        } else if Path::new("./termcraft").exists() {
+            PathBuf::from("./termcraft")
+        } else {
+            PathBuf::from("termcraft")
+        };
+
+        let mut cmd = Command::new(&bin_path);
+        cmd.arg("--diag");
+        cmd.env("PARTY_DIR", &self.party_dir);
+        let _ = cmd.status();
+
+        println!("\r\nPress Enter to return to chat...");
+        let mut line = String::new();
+        let _ = io::stdin().read_line(&mut line);
+
+        let _ = Command::new("stty").arg("sane").status();
+        enable_raw_mode()?;
+        execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+        terminal.clear()?;
         Ok(())
     }
 }
